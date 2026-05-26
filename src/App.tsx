@@ -5,6 +5,8 @@ import { Sparkles, Compass, AlertCircle, RefreshCw, Cpu, Database } from 'lucide
 
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
+type WalletName<T extends string> = T & { __brand?: any };
+
 // Core imports
 import { BlobItem, MediaTab } from './types';
 import { truncateAddress } from './lib/aptos';
@@ -56,17 +58,12 @@ export default function App() {
   // Wallet handlers
   const handleConnect = async () => {
     try {
-      await connect("Petra" as any);
-      toast.success("Petra Wallet connected!", {
-        style: {
-          background: '#1e293b',
-          color: '#fff',
-          borderRadius: '16px',
-          fontSize: '12px'
-        }
+      await connect("Petra" as WalletName<"Petra">);
+      toast.success("✅ Connected to Petra Wallet");
+    } catch (error: any) {
+      toast.error("Petra Wallet not found. Please install/unlock Petra extension.", {
+        duration: 5000,
       });
-    } catch (err: any) {
-      toast.error(err.message || "Failed to trigger Petra wallet extension");
     }
   };
 
