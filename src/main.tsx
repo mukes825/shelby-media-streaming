@@ -2,10 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import { AptosWalletAdapterProvider } from '@aptos-labs/wallet-adapter-react';
-import { PetraWallet } from 'petra-plugin-wallet-adapter';
 import './index.css';
 
-const wallets = [new PetraWallet()];
+const wallets: any[] = []; // In AIP-62 Standard, wallets are auto-detected & injected natively from window.aptos or browser extension.
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -14,7 +13,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       autoConnect={true}
       dappConfig={{
         network: "shelbynet" as const,
-        chainId: "shelbynet",
       }}
       onError={(error) => console.error("Wallet Error:", error)}
     >
