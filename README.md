@@ -1,85 +1,20 @@
-# 🚀 Shelby Media Streaming
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-A decentralized media streaming platform powered by **Shelby Devnet** and the **Aptos blockchain**.
+# Run and deploy your AI Studio app
 
-Users can upload 🎥 videos, 🖼️ images, 🎵 audio, and 📄 documents directly to Shelby decentralized hot storage and stream them using permanent decentralized URLs.
+This contains everything you need to run your app locally.
 
-The platform uses:
+View your app in AI Studio: https://ai.studio/apps/fa67fc65-e3f1-4d49-8671-9a2450115eae
 
-- 🔐 **Petra Wallet** for authentication
-- ⛓️ **Aptos blockchain** for transactions
-- 💵 **ShelbyUSD** for storage allocation
-- ⚡ **Shelby Hot Storage** for high-performance media delivery
+## Run Locally
 
----
+**Prerequisites:**  Node.js
 
-# ⚙️ How It Works
 
-```text
-Upload File
-    ↓
-Petra Wallet Approval
-    ↓
-APT Gas Transaction
-    ↓
-ShelbyUSD Storage Transaction
-    ↓
-File Uploaded to Shelby
-    ↓
-Blob Created
-    ↓
-Permanent Stream URL Generated
-```
-
----
-
-# ✨ Features
-
-- 🔗 Petra Wallet integration
-- 💰 APT + ShelbyUSD balance tracking
-- 📤 Upload videos, images, audio, and documents
-- 🗂️ Decentralized blob storage
-- 🌐 Permanent media streaming URLs
-- 📊 Blob history dashboard
-- ⚡ Real-time upload progress
-- 🎨 Modern Web3 UI
-- 📱 Fully responsive dashboard
-
----
-
-# 🛠️ Tech Stack
-
-- ⚛️ React 19
-- 🔷 TypeScript
-- ⚡ Vite
-- 🎨 Tailwind CSS
-- 🔐 Aptos Wallet Adapter
-- ⛓️ Aptos TS SDK
-- ☁️ Shelby Protocol SDK
-
----
-
-# 🌍 Shelby Devnet
-
-### 🔹 Fullnode
-https://api.shelbynet.shelby.xyz/v1
-
-### 🔹 Shelby RPC
-https://api.shelbynet.shelby.xyz/shelby
-
----
-
-# 🚀 Run Locally
-
-```bash
-npm install
-npm run dev
-```
-
----
-
-# 👨‍💻 Author
-
-**mukesh Kumar**
-
-🌐 Web3 Builder • Decentralized Infrastructure • DePIN
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

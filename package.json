@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@aptos-labs/ts-sdk": "^7.1.0",
+    "@aptos-labs/ts-sdk": "^5.1.1",
     "@aptos-labs/wallet-adapter-core": "^8.5.1",
     "@aptos-labs/wallet-adapter-react": "^8.3.3",
     "@google/genai": "^2.4.0",
