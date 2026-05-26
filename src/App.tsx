@@ -23,28 +23,8 @@ import MediaPlayer from './components/MediaPlayer';
 export default function App() {
   const { connect, disconnect, connected, account } = useWallet();
 
-  // 1. Connection state variables (Mock/Sandbox mode)
-  const [mockConnected, setMockConnected] = useState<boolean>(() => {
-    return localStorage.getItem("shelby_mock_connected_v1") === "true";
-  });
-  const [mockAddress, setMockAddress] = useState<string | null>(() => {
-    return localStorage.getItem("shelby_mock_address_v1") || null;
-  });
-
-  const walletConnected = connected || mockConnected;
-  const walletAddress = connected
-    ? (account?.address?.toString() || account?.address || null)
-    : mockAddress;
-
-  // Clear mock session if real wallet is active
-  useEffect(() => {
-    if (connected && account?.address) {
-      localStorage.removeItem("shelby_mock_connected_v1");
-      localStorage.removeItem("shelby_mock_address_v1");
-      setMockConnected(false);
-      setMockAddress(null);
-    }
-  }, [connected, account]);
+  const walletConnected = connected;
+  const walletAddress = account?.address?.toString() || (account?.address as any) || null;
 
   // 2. Custom sub-hooks
   const { currentNetwork, isCorrectNetwork, changeNetwork, targetNetwork } = useNetworkValidation(walletConnected);
@@ -54,7 +34,6 @@ export default function App() {
   // 3. UI control states
   const [activeTab, setActiveTab] = useState<MediaTab>('all');
   const [selectedBlob, setSelectedBlob] = useState<BlobItem | null>(null);
-  const [showWalletConnectorModal, setShowWalletConnectorModal] = useState<boolean>(false);
 
   // Tab counts
   const blobsCount = useMemo(() => {
@@ -75,24 +54,20 @@ export default function App() {
   }, [blobs]);
 
   // Wallet handlers
-  const handleConnect = () => {
-    setShowWalletConnectorModal(true);
-  };
-
-  const handleConfirmMockConnect = (customAddr: string) => {
-    localStorage.setItem("shelby_mock_connected_v1", "true");
-    localStorage.setItem("shelby_mock_address_v1", customAddr);
-    setMockConnected(true);
-    setMockAddress(customAddr);
-    setShowWalletConnectorModal(false);
-    toast.success(`Creator Sandbox connected to ${truncateAddress(customAddr)}!`, {
-      style: {
-        background: '#1e293b',
-        color: '#fff',
-        borderRadius: '16px',
-        fontSize: '12px'
-      }
-    });
+  const handleConnect = async () => {
+    try {
+      await connect("Petra" as any);
+      toast.success("Petra Wallet connected!", {
+        style: {
+          background: '#1e293b',
+          color: '#fff',
+          borderRadius: '16px',
+          fontSize: '12px'
+        }
+      });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to trigger Petra wallet extension");
+    }
   };
 
   const handleDisconnect = () => {
@@ -103,10 +78,6 @@ export default function App() {
         console.error("Failed to disconnect wallet adapter", err);
       }
     }
-    localStorage.removeItem("shelby_mock_connected_v1");
-    localStorage.removeItem("shelby_mock_address_v1");
-    setMockConnected(false);
-    setMockAddress(null);
     setSelectedBlob(null);
     toast(`Petra Wallet disconnected`, {
       icon: '🔔',
@@ -312,83 +283,6 @@ export default function App() {
           </div>
         </main>
       </div>
-
-      {/* Petra Wallet Adapter Emulator Modal Dialog */}
-      <AnimatePresence>
-        {showWalletConnectorModal && (
-          <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl border border-rose-50 border-t-pink-500 border-t-4 max-w-md w-full p-6 shadow-2xl relative"
-            >
-              <h3 className="text-base font-extrabold text-slate-800">Hook Petra Wallet</h3>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Choose the connection pipeline to sync with Shelby Devnet storage nodes. If no Petra extension is present, choose standard Emulator sync for instant testing.
-              </p>
-
-              <div className="mt-5 space-y-3">
-                {/* Simulated Petra adapter selector */}
-                <button
-                  type="button"
-                  id="petra-extension-connector-btn"
-                  onClick={async () => {
-                    try {
-                      await connect("Petra" as any);
-                      setShowWalletConnectorModal(false);
-                      toast.success("Petra Wallet connection requested!", {
-                        style: { borderRadius: '16px', fontSize: '11px' }
-                      });
-                    } catch (err: any) {
-                      toast.error(err.message || "Failed to trigger Petra wallet extension");
-                    }
-                  }}
-                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100/80 hover:border-amber-200 border border-amber-100 text-left transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-yellow-500 text-white flex items-center justify-center font-bold">P</div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-700">Official Petra Wallet Adapter</p>
-                      <p className="text-[10px] text-slate-400">Connect via physical Petra browser payload</p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Developer customized emulator selector */}
-                <button
-                  type="button"
-                  id="emulator-connector-btn"
-                  onClick={() => {
-                    // Seed standard Creator account
-                    handleConfirmMockConnect("0xb18363a9f1fe5e6ebf247daba5cc1c18052bb232efd");
-                  }}
-                  className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-pink-50 hover:bg-pink-100/80 hover:border-pink-200 border border-pink-100 text-left transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-pink-500 text-white flex items-center justify-center text-xs">
-                      <Cpu className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-700">Creator Sandbox Account</p>
-                      <p className="text-[10px] text-slate-400">Pre-loaded with SUSD, direct debug console</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={() => setShowWalletConnectorModal(false)}
-                className="absolute top-4 right-4 text-xs font-bold text-slate-400 hover:text-slate-600"
-              >
-                Cancel
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Ledger footer metrics */}
       <footer className="bg-amber-50/20 py-6 border-t border-pink-50 px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-400 font-mono">
