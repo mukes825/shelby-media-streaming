@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shelby Media Streaming</title>
+    <script>
+      // Fix for "Uncaught TypeError: Cannot set property fetch of #<Window> which has only a getter"
+      // This happens when packages like @aptos-labs/ts-sdk or node-fetch polyfills attempt to assign to window.fetch / globalThis.fetch
+      // in sandboxed iframe environments where fetch is read-only.
+      (function() {
+        try {
+          const originalFetch = window.fetch;
+          let customFetch = originalFetch;
+          Object.defineProperty(window, 'fetch', {
+            configurable: true,
+            enumerable: true,
+            get() {
+              return customFetch;
+            },
+            set(v) {
+              customFetch = v;
+            }
+          });
+        } catch (e) {
+          console.error("Failed to inject window.fetch setter patch:", e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

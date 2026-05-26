@@ -1,0 +1,6 @@
+{
+  "name": "Shelby Media Streaming",
+  "description": "Complete 2026 decentralized media streaming and hot storage dashboard synced with shelbynet devnet pools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
