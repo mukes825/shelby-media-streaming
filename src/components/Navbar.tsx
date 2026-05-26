@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Wallet, Globe, Coins, ShieldAlert, Sparkles, Check, HelpCircle, LogOut } from 'lucide-react';
 import { truncateAddress } from '../lib/aptos';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
 interface NavbarProps {
   walletConnected: boolean;
@@ -26,6 +27,7 @@ export default function Navbar({
   aptBalance,
   susdBalance
 }: NavbarProps) {
+  const { connected, disconnect } = useWallet();
   const [showNetworkMenu, setShowNetworkMenu] = useState(false);
   const [showWalletMenu, setShowWalletMenu] = useState(false);
   const [faucetClaiming, setFaucetClaiming] = useState(false);
@@ -38,7 +40,19 @@ export default function Navbar({
     }, 800);
   };
 
+  const handleDisconnectClick = async () => {
+    if (connected) {
+      try {
+        await disconnect();
+      } catch (err) {
+        console.error("Failed to disconnect wallet adapter from Navbar", err);
+      }
+    }
+    onDisconnect();
+  };
+
   const isCorrectNet = currentNetwork === "shelbynet";
+
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-pink-100 bg-amber-50/80 backdrop-blur-md px-6 py-3.5 flex items-center justify-between">
@@ -169,7 +183,7 @@ export default function Navbar({
                         <p className="text-xs font-mono text-slate-700 mt-0.5 select-all">{walletAddress}</p>
                       </div>
                       <button
-                        onClick={onDisconnect}
+                        onClick={handleDisconnectClick}
                         title="Disconnect Wallet"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
                       >

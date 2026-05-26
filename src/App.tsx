@@ -3,6 +3,8 @@ import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Compass, AlertCircle, RefreshCw, Cpu, Database } from 'lucide-react';
 
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
+
 // Core imports
 import { BlobItem, MediaTab } from './types';
 import { truncateAddress } from './lib/aptos';
@@ -19,13 +21,30 @@ import BlobTable from './components/BlobTable';
 import MediaPlayer from './components/MediaPlayer';
 
 export default function App() {
-  // 1. Connection state variables
-  const [walletConnected, setWalletConnected] = useState<boolean>(() => {
-    return localStorage.getItem("shelby_connected_v1") === "true";
+  const { connect, disconnect, connected, account } = useWallet();
+
+  // 1. Connection state variables (Mock/Sandbox mode)
+  const [mockConnected, setMockConnected] = useState<boolean>(() => {
+    return localStorage.getItem("shelby_mock_connected_v1") === "true";
   });
-  const [walletAddress, setWalletAddress] = useState<string | null>(() => {
-    return localStorage.getItem("shelby_address_v1") || null;
+  const [mockAddress, setMockAddress] = useState<string | null>(() => {
+    return localStorage.getItem("shelby_mock_address_v1") || null;
   });
+
+  const walletConnected = connected || mockConnected;
+  const walletAddress = connected
+    ? (account?.address?.toString() || account?.address || null)
+    : mockAddress;
+
+  // Clear mock session if real wallet is active
+  useEffect(() => {
+    if (connected && account?.address) {
+      localStorage.removeItem("shelby_mock_connected_v1");
+      localStorage.removeItem("shelby_mock_address_v1");
+      setMockConnected(false);
+      setMockAddress(null);
+    }
+  }, [connected, account]);
 
   // 2. Custom sub-hooks
   const { currentNetwork, isCorrectNetwork, changeNetwork, targetNetwork } = useNetworkValidation(walletConnected);
@@ -36,14 +55,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<MediaTab>('all');
   const [selectedBlob, setSelectedBlob] = useState<BlobItem | null>(null);
   const [showWalletConnectorModal, setShowWalletConnectorModal] = useState<boolean>(false);
-
-  // Auto-connect to previously connected mock/Petra session if any
-  useEffect(() => {
-    if (walletConnected && !walletAddress) {
-      const saved = localStorage.getItem("shelby_address_v1") || "0xb18363a9f1fe5e6ebf247daba5cc1c18052bb232efd";
-      setWalletAddress(saved);
-    }
-  }, [walletConnected, walletAddress]);
 
   // Tab counts
   const blobsCount = useMemo(() => {
@@ -69,12 +80,12 @@ export default function App() {
   };
 
   const handleConfirmMockConnect = (customAddr: string) => {
-    localStorage.setItem("shelby_connected_v1", "true");
-    localStorage.setItem("shelby_address_v1", customAddr);
-    setWalletConnected(true);
-    setWalletAddress(customAddr);
+    localStorage.setItem("shelby_mock_connected_v1", "true");
+    localStorage.setItem("shelby_mock_address_v1", customAddr);
+    setMockConnected(true);
+    setMockAddress(customAddr);
     setShowWalletConnectorModal(false);
-    toast.success(`Petra Wallet connected to ${truncateAddress(customAddr)}!`, {
+    toast.success(`Creator Sandbox connected to ${truncateAddress(customAddr)}!`, {
       style: {
         background: '#1e293b',
         color: '#fff',
@@ -85,10 +96,17 @@ export default function App() {
   };
 
   const handleDisconnect = () => {
-    localStorage.removeItem("shelby_connected_v1");
-    localStorage.removeItem("shelby_address_v1");
-    setWalletConnected(false);
-    setWalletAddress(null);
+    if (connected) {
+      try {
+        disconnect();
+      } catch (err) {
+        console.error("Failed to disconnect wallet adapter", err);
+      }
+    }
+    localStorage.removeItem("shelby_mock_connected_v1");
+    localStorage.removeItem("shelby_mock_address_v1");
+    setMockConnected(false);
+    setMockAddress(null);
     setSelectedBlob(null);
     toast(`Petra Wallet disconnected`, {
       icon: '🔔',
@@ -100,6 +118,7 @@ export default function App() {
       }
     });
   };
+
 
   // Claim Faucet Handler
   const handleClaimFaucet = () => {
@@ -314,9 +333,16 @@ export default function App() {
                 <button
                   type="button"
                   id="petra-extension-connector-btn"
-                  onClick={() => {
-                    // Seed standard Devnet account
-                    handleConfirmMockConnect("0xec157dead8623ad5cc50ef55605392d98e155b62");
+                  onClick={async () => {
+                    try {
+                      await connect("Petra" as any);
+                      setShowWalletConnectorModal(false);
+                      toast.success("Petra Wallet connection requested!", {
+                        style: { borderRadius: '16px', fontSize: '11px' }
+                      });
+                    } catch (err: any) {
+                      toast.error(err.message || "Failed to trigger Petra wallet extension");
+                    }
                   }}
                   className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100/80 hover:border-amber-200 border border-amber-100 text-left transition-all"
                 >
