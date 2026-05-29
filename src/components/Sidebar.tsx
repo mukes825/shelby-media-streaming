@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { LayoutGrid, Video, Music, Image as ImageIcon, FileText, Globe2, Link, Server, ShieldCheck } from 'lucide-react';
 import { MediaTab } from '../types';
 import { SHELBYNET_CONFIG } from '../lib/aptos';

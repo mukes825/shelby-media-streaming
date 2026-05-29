@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Compass, AlertCircle, RefreshCw, Cpu, Database } from 'lucide-react';
 
 import { useWallet } from '@aptos-labs/wallet-adapter-react';

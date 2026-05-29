@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Coins, HardDrive, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
 
 interface BalanceCardsProps {

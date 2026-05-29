@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Copy, ExternalLink, Search, Database, FileText, Check, HelpCircle, HardDrive, Cpu } from 'lucide-react';
 import { BlobItem, MediaTab } from '../types';
 import { truncateAddress } from '../lib/aptos';

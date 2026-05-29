@@ -1,5 +1,5 @@
 import { useState, useRef, DragEvent, ChangeEvent, FormEvent } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileUp, ShieldAlert, Sparkles, AlertCircle, File, CheckCircle, Scale } from 'lucide-react';
 import { calculateStoragePrice } from '../lib/aptos';
 

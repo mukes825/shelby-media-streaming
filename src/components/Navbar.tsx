@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Globe, Coins, ShieldAlert, Sparkles, Check, HelpCircle, LogOut } from 'lucide-react';
 import { truncateAddress } from '../lib/aptos';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
