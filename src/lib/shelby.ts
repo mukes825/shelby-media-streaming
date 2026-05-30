@@ -1,4 +1,3 @@
-import { ShelbyClient as ShelbySDK } from "@shelby-protocol/sdk";
 import { BlobItem } from "../types";
 import { generateTxnHash, calculateStoragePrice } from "./aptos";
 
@@ -91,37 +90,47 @@ export class ShelbyClient {
     let streamUrl = "";
 
     try {
-      // Real Shelby SDK upload
-      const shelby = new ShelbySDK({ rpcUrl: SHELBY_RPC });
+      // Direct fetch to Shelby RPC — no SDK needed
       const arrayBuffer = await file.arrayBuffer();
       const uint8 = new Uint8Array(arrayBuffer);
 
       onProgress(30);
 
-      const result = await shelby.store(uint8, {
-        metadata: {
-          name,
-          description: description || "Uploaded via Shelby Media Streaming",
-          contentType: type,
-          uploader: senderAddress
-        }
+      const response = await fetch(`${SHELBY_RPC}/blobs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": type,
+          "X-Uploader": senderAddress,
+          "X-Description": description || "Uploaded via Shelby Media Streaming",
+          "X-File-Name": name,
+        },
+        body: uint8,
       });
 
-      onProgress(80);
+      onProgress(70);
 
-      blobId = result.blobId || result.id || `shelby-blob-${Math.floor(Math.random() * 10000000).toString(16)}`;
-      streamUrl = `https://api.shelbynet.shelby.xyz/shelby/blobs/${blobId}/stream`;
+      if (response.ok) {
+        const result = await response.json();
+        blobId = result.blobId || result.id || `shelby-blob-${Math.floor(Math.random() * 10000000).toString(16)}`;
+        streamUrl = `${SHELBY_RPC}/blobs/${blobId}/stream`;
+      } else {
+        throw new Error(`RPC error: ${response.status}`);
+      }
 
-    } catch (sdkErr) {
-      console.warn("Shelby SDK upload failed, using fallback:", sdkErr);
-      // Fallback - local object URL
+      onProgress(90);
+
+    } catch (err) {
+      console.warn("Shelby RPC upload failed, using local fallback:", err);
+
+      // Fallback — local object URL for demo/devnet
       blobId = `shelby-blob-${Math.floor(Math.random() * 10000000).toString(16)}`;
-      streamUrl = type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")
-        ? URL.createObjectURL(file)
-        : "https://arxiv.org/pdf/2112.02231.pdf";
+      streamUrl =
+        type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")
+          ? URL.createObjectURL(file)
+          : "https://arxiv.org/pdf/2112.02231.pdf";
 
       for (let p = 30; p <= 90; p += 20) {
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 200));
         onProgress(p);
       }
     }
@@ -139,7 +148,7 @@ export class ShelbyClient {
       description: description || "Uploaded media file via Shelby Client",
       streamUrl,
       gasPaid,
-      storageCost
+      storageCost,
     };
 
     const current = this.getBlobs();
