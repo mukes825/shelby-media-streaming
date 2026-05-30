@@ -4,26 +4,22 @@ import { useWallet } from '@aptos-labs/wallet-adapter-react';
 const SHELBY_DEVNET = "https://api.shelbynet.shelby.xyz/v1";
 const SUSD_FAUCET = "https://faucet.shelbynet.shelby.xyz";
 const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
-const APT_COIN  = "0x1::aptos_coin::AptosCoin";
+const APT_COIN = "0x1::aptos_coin::AptosCoin";
 
 export function useBalances(walletConnected: boolean, walletAddress: string | null) {
   const { signAndSubmitTransaction } = useWallet();
-  const [apt,  setApt]  = useState(0);
+  const [apt, setApt] = useState(0);
   const [susd, setSusd] = useState(0);
 
   const fetchBalances = async () => {
     if (!walletAddress) return;
     try {
-      const aptRes = await fetch(
-        `${SHELBY_DEVNET}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN}>`
-      );
+      const aptRes = await fetch(`${SHELBY_DEVNET}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN}>`);
       if (aptRes.ok) {
         const d = await aptRes.json();
         setApt(parseInt(d?.data?.coin?.value ?? "0") / 1e8);
       }
-      const susdRes = await fetch(
-        `${SHELBY_DEVNET}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN}>`
-      );
+      const susdRes = await fetch(`${SHELBY_DEVNET}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN}>`);
       if (susdRes.ok) {
         const d = await susdRes.json();
         setSusd(parseInt(d?.data?.coin?.value ?? "0") / 1e8);
@@ -34,7 +30,11 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   };
 
   useEffect(() => {
-    if (!walletConnected || !walletAddress) { setApt(0); setSusd(0); return; }
+    if (!walletConnected || !walletAddress) {
+      setApt(0);
+      setSusd(0);
+      return;
+    }
     fetchBalances();
     const t = setInterval(fetchBalances, 6000);
     return () => clearInterval(t);
