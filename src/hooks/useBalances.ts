@@ -4,6 +4,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
 const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
 const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
+const SUSD_ASSET = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
 const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
 const APT_COIN = "0x1::aptos_coin::AptosCoin";
 
@@ -15,7 +16,7 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   const fetchBalances = async () => {
     if (!walletAddress) return;
     try {
-      // ✅ APT balance — 0x1::coin::balance view call
+      // APT balance
       const aptRes = await fetch(`${SHELBY_RPC}/view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -32,14 +33,14 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         setApt(0);
       }
 
-      // ✅ ShelbyUSD balance — same view call
+      // SUSD balance — FungibleStore se (primary_fungible_store)
       const susdRes = await fetch(`${SHELBY_RPC}/view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          function: "0x1::coin::balance",
-          type_arguments: [SUSD_COIN],
-          arguments: [walletAddress]
+          function: "0x1::primary_fungible_store::balance",
+          type_arguments: [],
+          arguments: [walletAddress, SUSD_ASSET]
         })
       });
       if (susdRes.ok) {
@@ -102,7 +103,7 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
           ]
         }
       });
-      console.log("✅ APT gas tx:", aptTx.hash);
+      console.log("APT gas tx:", aptTx.hash);
 
       const susdTx = await signAndSubmitTransaction({
         data: {
@@ -114,7 +115,7 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
           ]
         }
       });
-      console.log("✅ SUSD storage tx:", susdTx.hash);
+      console.log("SUSD storage tx:", susdTx.hash);
 
       setTimeout(fetchBalances, 3000);
       return true;
