@@ -12,6 +12,42 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   const { signAndSubmitTransaction } = useWallet();
   const [apt, setApt] = useState(0);
   const [susd, setSusd] = useState(0);
+  const [userSusdStore, setUserSusdStore] = useState<string | null>(null);
+
+  // Har user ka personal SUSD store dhundo — ObjectCore owner check se
+  const findUserStore = async (address: string): Promise<string | null> => {
+    try {
+      const txRes = await fetch(
+        `${SHELBY_RPC}/accounts/${address}/transactions?limit=25`
+      );
+      if (!txRes.ok) return null;
+      const txns = await txRes.json();
+
+      for (const txn of txns) {
+        for (const change of (txn.changes || [])) {
+          if (
+            change.data?.type === "0x1::fungible_asset::FungibleStore" &&
+            change.data?.data?.metadata?.inner === SUSD_METADATA &&
+            change.address
+          ) {
+            // Owner check — ye store is user ka hai?
+            const ownerRes = await fetch(
+              `${SHELBY_RPC}/accounts/${change.address}/resource/0x1::object::ObjectCore`
+            );
+            if (ownerRes.ok) {
+              const ownerData = await ownerRes.json();
+              if (ownerData?.data?.owner === address) {
+                return change.address;
+              }
+            }
+          }
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
 
   const fetchBalances = async () => {
     if (!walletAddress) return;
@@ -33,41 +69,37 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         setApt(0);
       }
 
-      // SUSD — sab stores dhundo aur balance add karo
-      const txRes = await fetch(
-        `${SHELBY_RPC}/accounts/${walletAddress}/transactions?limit=50`
-      );
-      if (!txRes.ok) { setSusd(0); return; }
-
-      const txns = await txRes.json();
-      const seenStores = new Set<string>();
-      let totalSusd = 0;
-
-      for (const txn of txns) {
-        for (const change of (txn.changes || [])) {
-          if (
-            change.data?.type === "0x1::fungible_asset::FungibleStore" &&
-            change.data?.data?.metadata?.inner === SUSD_METADATA &&
-            change.address &&
-            !seenStores.has(change.address)
-          ) {
-            seenStores.add(change.address);
-            // Latest balance fetch karo directly
-            const storeRes = await fetch(
-              `${SHELBY_RPC}/accounts/${change.address}/resource/0x1::fungible_asset::FungibleStore`
-            );
-            if (storeRes.ok) {
-              const sd = await storeRes.json();
-              totalSusd += parseInt(sd.data?.balance ?? "0");
-            }
-          }
-        }
+      // SUSD — user ka personal store
+      let storeAddr = userSusdStore;
+      if (!storeAddr) {
+        storeAddr = await findUserStore(walletAddress);
+        if (storeAddr) setUserSusdStore(storeAddr);
       }
-      setSusd(totalSusd / 1e8);
+
+      if (storeAddr) {
+        const storeRes = await fetch(
+          `${SHELBY_RPC}/accounts/${storeAddr}/resource/0x1::fungible_asset::FungibleStore`
+        );
+        if (storeRes.ok) {
+          const sd = await storeRes.json();
+          setSusd(parseInt(sd.data?.balance ?? "0") / 1e8);
+        } else {
+          setSusd(0);
+        }
+      } else {
+        setSusd(0);
+      }
     } catch (err) {
       console.error("Balance fetch error:", err);
     }
   };
+
+  // Wallet change hone par store reset karo
+  useEffect(() => {
+    setUserSusdStore(null);
+    setSusd(0);
+    setApt(0);
+  }, [walletAddress]);
 
   useEffect(() => {
     if (!walletConnected || !walletAddress) {
@@ -89,12 +121,14 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         body: JSON.stringify({ address: walletAddress, amount: 500000000 })
       });
       console.log("APT faucet:", aptRes.status);
+
       const susdRes = await fetch(SUSD_FAUCET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 1000000000 })
       });
       console.log("SUSD faucet:", susdRes.status);
+
       setTimeout(fetchBalances, 3000);
       return true;
     } catch (err) {
@@ -130,7 +164,8 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
       });
       console.log("SUSD storage tx:", susdTx.hash);
 
-      setTimeout(fetchBalances, 3000);
+      // Balance turant refresh karo
+      setTimeout(fetchBalances, 2000);
       return true;
     } catch (err: any) {
       console.error("Transaction failed:", err);
