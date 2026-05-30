@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
 const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
-const SUSD_STORE = "0xfb0fae7b415bb74529abada8bccad88d42885a3a30bb646c241fb18a520b0459";
+const SUSD_METADATA = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
 const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
 const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
 const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
@@ -33,16 +33,37 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         setApt(0);
       }
 
-      // SUSD — direct FungibleStore address se
-      const susdRes = await fetch(
-        `${SHELBY_RPC}/accounts/${SUSD_STORE}/resource/0x1::fungible_asset::FungibleStore`
+      // SUSD — sab stores dhundo aur balance add karo
+      const txRes = await fetch(
+        `${SHELBY_RPC}/accounts/${walletAddress}/transactions?limit=50`
       );
-      if (susdRes.ok) {
-        const d = await susdRes.json();
-        setSusd(parseInt(d.data?.balance ?? "0") / 1e8);
-      } else {
-        setSusd(0);
+      if (!txRes.ok) { setSusd(0); return; }
+
+      const txns = await txRes.json();
+      const seenStores = new Set<string>();
+      let totalSusd = 0;
+
+      for (const txn of txns) {
+        for (const change of (txn.changes || [])) {
+          if (
+            change.data?.type === "0x1::fungible_asset::FungibleStore" &&
+            change.data?.data?.metadata?.inner === SUSD_METADATA &&
+            change.address &&
+            !seenStores.has(change.address)
+          ) {
+            seenStores.add(change.address);
+            // Latest balance fetch karo directly
+            const storeRes = await fetch(
+              `${SHELBY_RPC}/accounts/${change.address}/resource/0x1::fungible_asset::FungibleStore`
+            );
+            if (storeRes.ok) {
+              const sd = await storeRes.json();
+              totalSusd += parseInt(sd.data?.balance ?? "0");
+            }
+          }
+        }
       }
+      setSusd(totalSusd / 1e8);
     } catch (err) {
       console.error("Balance fetch error:", err);
     }
