@@ -11,33 +11,49 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   const { network } = useWallet();
   const [apt, setApt] = useState<number>(0);
   const [susd, setSusd] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const fetchBalances = async () => {
     if (!walletConnected || !walletAddress) {
       setApt(0);
       setSusd(0);
+      setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
+      // APT fetch
       const aptRes = await fetch(
         `${SHELBY_FULLNODE}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN_TYPE}>`
       );
       if (aptRes.ok) {
         const data = await aptRes.json();
         const val = data?.data?.coin?.value;
-        if (val !== undefined) setApt(parseInt(val, 10) / 100000000);
+        if (val !== undefined) {
+          const aptAmount = parseInt(val, 10) / 100000000;
+          setApt(aptAmount);
+          console.log("APT Balance:", aptAmount);
+        }
+      } else {
+        console.log("APT fetch status:", aptRes.status);
       }
 
+      // SUSD fetch
       const susdRes = await fetch(
         `${SHELBY_FULLNODE}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN_TYPE}>`
       );
       if (susdRes.ok) {
         const data = await susdRes.json();
         const val = data?.data?.coin?.value;
-        if (val !== undefined) setSusd(parseInt(val, 10) / 100000000);
+        if (val !== undefined) {
+          const susdAmount = parseInt(val, 10) / 100000000;
+          setSusd(susdAmount);
+          console.log("SUSD Balance:", susdAmount);
+        }
+      } else {
+        console.log("SUSD fetch status:", susdRes.status);
       }
+
     } catch (err) {
       console.error("Balance fetch failed:", err);
     } finally {
@@ -46,36 +62,46 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   };
 
   useEffect(() => {
-    fetchBalances();
+    if (walletConnected && walletAddress) {
+      fetchBalances();
+    }
   }, [walletConnected, walletAddress, network]);
 
   useEffect(() => {
     if (!walletConnected || !walletAddress) return;
-    const interval = setInterval(fetchBalances, 10000);
+    const interval = setInterval(fetchBalances, 8000);
     return () => clearInterval(interval);
   }, [walletConnected, walletAddress]);
 
   const claimFaucet = async () => {
     if (!walletAddress) return;
     try {
-      await fetch(APT_FAUCET, {
+      const r1 = await fetch(APT_FAUCET, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 100000000 }),
       });
-      await fetch(SUSD_FAUCET, {
+      console.log("APT Faucet:", r1.status);
+
+      const r2 = await fetch(SUSD_FAUCET, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 1000000000 }),
       });
-      setTimeout(fetchBalances, 2000);
+      console.log("SUSD Faucet:", r2.status);
+
+      setTimeout(fetchBalances, 3000);
     } catch (err) {
       console.error("Faucet failed:", err);
     }
   };
 
+  // ✅ FIX: deduct sirf check karta hai — real balance blockchain se aata hai
   const deduct = (aptAmount: number, susdAmount: number): boolean => {
-    if (apt < aptAmount || susd < susdAmount) return false;
+    console.log("Deduct check — APT:", apt, "need:", aptAmount, "SUSD:", susd, "need:", susdAmount);
+    if (apt < aptAmount || susd < susdAmount) {
+      return false;
+    }
     setTimeout(fetchBalances, 3000);
     return true;
   };
