@@ -1,128 +1,128 @@
-import { useState, useEffect } from 'react';
-import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { useState, useEffect } from "react";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
-const SHELBY_FULLNODE = "https://api.shelbynet.staging.aptoslabs.com/v1";
-const APT_FAUCET = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
-const SUSD_FAUCET = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
-const APT_COIN_TYPE = "0x1::aptos_coin::AptosCoin";
-const SUSD_COIN_TYPE = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
+const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
+const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
+const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
+const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
+const APT_COIN = "0x1::aptos_coin::AptosCoin";
 
 export function useBalances(walletConnected: boolean, walletAddress: string | null) {
-  const { network } = useWallet();
-  const [apt, setApt] = useState<number>(0);
-  const [susd, setSusd] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { signAndSubmitTransaction } = useWallet();
+  const [apt, setApt] = useState(0);
+  const [susd, setSusd] = useState(0);
 
   const fetchBalances = async () => {
-    if (!walletConnected || !walletAddress) {
-      setApt(0);
-      setSusd(0);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
+    if (!walletAddress) return;
     try {
-      const aptRes = await fetch(
-        `${SHELBY_FULLNODE}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN_TYPE}>`
-      );
+      // ✅ APT balance — 0x1::coin::balance view call
+      const aptRes = await fetch(`${SHELBY_RPC}/view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          function: "0x1::coin::balance",
+          type_arguments: [APT_COIN],
+          arguments: [walletAddress]
+        })
+      });
       if (aptRes.ok) {
-        const data = await aptRes.json();
-        const val = data?.data?.coin?.value;
-        if (val !== undefined) {
-          const aptAmount = parseInt(val, 10) / 100000000;
-          setApt(aptAmount);
-          console.log("APT Balance:", aptAmount);
-        }
+        const d = await aptRes.json();
+        setApt(parseInt(d[0] ?? "0") / 1e8);
       } else {
-        console.log("APT fetch status:", aptRes.status);
         setApt(0);
       }
 
-      const susdRes = await fetch(
-        `${SHELBY_FULLNODE}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN_TYPE}>`
-      );
+      // ✅ ShelbyUSD balance — same view call
+      const susdRes = await fetch(`${SHELBY_RPC}/view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          function: "0x1::coin::balance",
+          type_arguments: [SUSD_COIN],
+          arguments: [walletAddress]
+        })
+      });
       if (susdRes.ok) {
-        const data = await susdRes.json();
-        const val = data?.data?.coin?.value;
-        if (val !== undefined) {
-          const susdAmount = parseInt(val, 10) / 100000000;
-          setSusd(susdAmount);
-          console.log("SUSD Balance:", susdAmount);
-        }
+        const d = await susdRes.json();
+        setSusd(parseInt(d[0] ?? "0") / 1e8);
       } else {
-        console.log("SUSD fetch status:", susdRes.status);
         setSusd(0);
       }
     } catch (err) {
-      console.error("Balance fetch failed:", err);
-    } finally {
-      setIsLoading(false);
+      console.error("Balance fetch error:", err);
     }
   };
 
   useEffect(() => {
-    if (walletConnected && walletAddress) {
-      fetchBalances();
+    if (!walletConnected || !walletAddress) {
+      setApt(0);
+      setSusd(0);
+      return;
     }
-  }, [walletConnected, walletAddress, network]);
-
-  useEffect(() => {
-    if (!walletConnected || !walletAddress) return;
-    const interval = setInterval(fetchBalances, 8000);
-    return () => clearInterval(interval);
+    fetchBalances();
+    const t = setInterval(fetchBalances, 6000);
+    return () => clearInterval(t);
   }, [walletConnected, walletAddress]);
 
-  const claimFaucet = async () => {
-    if (!walletAddress) return;
+  const claimFaucet = async (): Promise<boolean> => {
+    if (!walletAddress) return false;
     try {
-      const r1 = await fetch(APT_FAUCET, {
+      const aptRes = await fetch(APT_FAUCET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: walletAddress, amount: 100000000 }),
+        body: JSON.stringify({ address: walletAddress, amount: 500000000 })
       });
-      console.log("APT Faucet status:", r1.status);
+      console.log("APT faucet:", aptRes.status);
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const r2 = await fetch(SUSD_FAUCET, {
+      const susdRes = await fetch(SUSD_FAUCET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: walletAddress, amount: 1000000000 }),
+        body: JSON.stringify({ address: walletAddress, amount: 1000000000 })
       });
-      console.log("SUSD Faucet status:", r2.status);
+      console.log("SUSD faucet:", susdRes.status);
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      await fetchBalances();
-
+      setTimeout(fetchBalances, 3000);
+      return true;
     } catch (err) {
-      console.error("Faucet failed:", err);
-    }
-  };
-
-  const deduct = (aptAmount: number, susdAmount: number): boolean => {
-    console.log("Deduct check — APT:", apt, "need:", aptAmount, "SUSD:", susd, "need:", susdAmount);
-    if (apt < aptAmount || susd < susdAmount) {
+      console.error("Faucet error:", err);
       return false;
     }
-    setTimeout(fetchBalances, 3000);
-    return true;
   };
 
-  return {
-    apt,
-    susd,
-    aptBalance: {
-      data: apt,
-      isLoading,
-      isRefetching: false,
-    },
-    shelbyUSDBalance: {
-      data: susd,
-      isLoading,
-      isRefetching: false,
-    },
-    claimFaucet,
-    deduct,
-    refresh: fetchBalances,
+  const deduct = async (aptAmount: number, susdAmount: number): Promise<boolean> => {
+    if (!walletAddress || !signAndSubmitTransaction) return false;
+    try {
+      const aptTx = await signAndSubmitTransaction({
+        data: {
+          function: "0x1::aptos_account::transfer",
+          typeArguments: [],
+          functionArguments: [
+            "0x000000000000000000000000000000000000000000000000000000000000dead",
+            Math.floor(aptAmount * 1e8).toString()
+          ]
+        }
+      });
+      console.log("✅ APT gas tx:", aptTx.hash);
+
+      const susdTx = await signAndSubmitTransaction({
+        data: {
+          function: "0x1::coin::transfer",
+          typeArguments: [SUSD_COIN],
+          functionArguments: [
+            "0x000000000000000000000000000000000000000000000000000000000000dead",
+            Math.floor(susdAmount * 1e8).toString()
+          ]
+        }
+      });
+      console.log("✅ SUSD storage tx:", susdTx.hash);
+
+      setTimeout(fetchBalances, 3000);
+      return true;
+    } catch (err: any) {
+      console.error("Transaction failed:", err);
+      throw new Error(err?.message || "Petra transaction rejected");
+    }
   };
+
+  return { apt, susd, claimFaucet, deduct, refresh: fetchBalances };
 }
