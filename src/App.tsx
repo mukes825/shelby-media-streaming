@@ -1,4 +1,3 @@
-cat > src/App.tsx << 'EOF'
 import { useState, useMemo } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -46,7 +45,7 @@ export default function App() {
   const handleConnect = async () => {
     try {
       await connect("Petra" as WalletName<"Petra">);
-      toast.success("✅ Connected to Petra Wallet");
+      toast.success("Connected to Petra Wallet");
     } catch (error: any) {
       toast.error("Petra Wallet not found. Please install/unlock Petra extension.", { duration: 5000 });
     }
@@ -63,7 +62,6 @@ export default function App() {
     });
   };
 
-  // ✅ REAL ASYNC FAUCET
   const handleClaimFaucet = async () => {
     const ok = await claimFaucet();
     if (ok) {
@@ -78,7 +76,6 @@ export default function App() {
     }
   };
 
-  // ✅ REAL PETRA TRANSACTIONS
   const handleUploadMediaPayload = async (
     file: File,
     description: string,
@@ -87,16 +84,9 @@ export default function App() {
   ) => {
     if (!walletAddress) return;
     try {
-      const result = await uploadMedia(
-        file,
-        description,
-        walletAddress,
-        deduct,
-        storageCost,
-        gasCost
-      );
+      const result = await uploadMedia(file, description, walletAddress, deduct, storageCost, gasCost);
       if (result) {
-        toast.success(`Decentralized Stream Active! Registered blob ${result.id}`, {
+        toast.success(`Stream Active! Blob ${result.id} registered`, {
           icon: '🚀',
           duration: 4000,
           style: { background: '#1e293b', color: '#fff', borderRadius: '16px', fontSize: '12px' }
@@ -104,7 +94,7 @@ export default function App() {
         setSelectedBlob(result);
       }
     } catch (e: any) {
-      toast.error(e.message || "Failed to finalize Shelby upload payload.");
+      toast.error(e.message || "Upload failed.");
     }
   };
 
@@ -129,13 +119,9 @@ export default function App() {
         onNetworkChange={(net) => {
           changeNetwork(net);
           if (net !== "shelbynet") {
-            toast.error("Switched away from shelbynet! Transactions will fail.", {
-              style: { borderRadius: '16px', fontSize: '11px' }
-            });
+            toast.error("Switched away from shelbynet!", { style: { borderRadius: '16px', fontSize: '11px' } });
           } else {
-            toast.success("Correct Network Synchronized!", {
-              style: { borderRadius: '16px', fontSize: '11px' }
-            });
+            toast.success("Correct Network Synchronized!", { style: { borderRadius: '16px', fontSize: '11px' } });
           }
         }}
         onClaimFaucet={handleClaimFaucet}
@@ -144,11 +130,7 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col md:flex-row w-full">
-        <Sidebar
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          blobsCount={blobsCount}
-        />
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} blobsCount={blobsCount} />
 
         <main className="flex-grow p-4 md:p-8 space-y-7 max-w-7xl mx-auto w-full overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -157,12 +139,9 @@ export default function App() {
               <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 font-medium">
                 <Compass className="w-3.5 h-3.5 text-pink-500" />
                 Live indexing node registry synced with{' '}
-                <span className="font-mono text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100/60 font-bold">
-                  shelbynet
-                </span>
+                <span className="font-mono text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100/60 font-bold">shelbynet</span>
               </p>
             </div>
-
             <div className="flex md:hidden gap-1.5 overflow-x-auto pb-1">
               {(['all', 'video', 'audio', 'image'] as MediaTab[]).map((tab) => (
                 <button
@@ -186,12 +165,8 @@ export default function App() {
             >
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold">Unsupported Wallet Network Detected</p>
-                <p className="opacity-90 mt-0.5">
-                  Currently running on{' '}
-                  <span className="font-bold capitalize">{currentNetwork}</span>. Please toggle
-                  to <span className="font-bold font-mono">shelbynet</span> to sign transactions.
-                </p>
+                <p className="font-bold">Wrong Network Detected</p>
+                <p className="opacity-90 mt-0.5">Switch to <span className="font-bold font-mono">shelbynet</span> to sign transactions.</p>
               </div>
             </motion.div>
           )}
@@ -247,4 +222,3 @@ export default function App() {
     </div>
   );
 }
-EOF
