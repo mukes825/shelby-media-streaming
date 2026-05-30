@@ -22,7 +22,6 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
     }
     setIsLoading(true);
     try {
-      // APT fetch
       const aptRes = await fetch(
         `${SHELBY_FULLNODE}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN_TYPE}>`
       );
@@ -36,9 +35,9 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         }
       } else {
         console.log("APT fetch status:", aptRes.status);
+        setApt(0);
       }
 
-      // SUSD fetch
       const susdRes = await fetch(
         `${SHELBY_FULLNODE}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN_TYPE}>`
       );
@@ -52,8 +51,8 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         }
       } else {
         console.log("SUSD fetch status:", susdRes.status);
+        setSusd(0);
       }
-
     } catch (err) {
       console.error("Balance fetch failed:", err);
     } finally {
@@ -81,22 +80,25 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 100000000 }),
       });
-      console.log("APT Faucet:", r1.status);
+      console.log("APT Faucet status:", r1.status);
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       const r2 = await fetch(SUSD_FAUCET, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 1000000000 }),
       });
-      console.log("SUSD Faucet:", r2.status);
+      console.log("SUSD Faucet status:", r2.status);
 
-      setTimeout(fetchBalances, 3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await fetchBalances();
+
     } catch (err) {
       console.error("Faucet failed:", err);
     }
   };
 
-  // ✅ FIX: deduct sirf check karta hai — real balance blockchain se aata hai
   const deduct = (aptAmount: number, susdAmount: number): boolean => {
     console.log("Deduct check — APT:", apt, "need:", aptAmount, "SUSD:", susd, "need:", susdAmount);
     if (apt < aptAmount || susd < susdAmount) {
