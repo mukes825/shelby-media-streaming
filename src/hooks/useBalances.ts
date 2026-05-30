@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
 // ✅ Correct RPC — same as Shelby Explorer uses
-const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
+const SHELBY_RPC = "https://api.shelbynet.shelby.xyz/v1";
 
 // ✅ Correct Faucet URLs — captured from Shelby Explorer network calls
 const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
