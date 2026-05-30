@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { BlobItem } from '../types';
-import { ShelbyClient } from '../lib/shelby';
+import { useState, useCallback, useEffect } from "react";
+import { BlobItem } from "../types";
+import { ShelbyClient } from "../lib/shelby";
 
 export function useShelbyClient() {
   const [blobs, setBlobs] = useState<BlobItem[]>([]);
@@ -39,13 +39,13 @@ export function useShelbyClient() {
     setUploadProgress(10);
     try {
       const success = await deductBalance(gasCost, storageCost);
-      if (!success) {
-        throw new Error("Transaction failed or rejected in Petra.");
-      }
+      if (!success) throw new Error("Transaction failed or rejected in Petra.");
+
       const result = await ShelbyClient.uploadBlob(
         file, description, senderAddress,
         (p) => setUploadProgress(p)
       );
+
       fetchBlobs();
       window.dispatchEvent(new Event("shelby_blobs_changed"));
       return result;
