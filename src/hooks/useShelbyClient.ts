@@ -1,4 +1,3 @@
-cat > src/hooks/useShelbyClient.ts << 'EOF'
 import { useState, useCallback, useEffect } from 'react';
 import { BlobItem } from '../types';
 import { ShelbyClient } from '../lib/shelby';
@@ -39,17 +38,14 @@ export function useShelbyClient() {
     setIsUploading(true);
     setUploadProgress(10);
     try {
-      // Real Petra transactions — APT gas + SUSD storage
       const success = await deductBalance(gasCost, storageCost);
       if (!success) {
         throw new Error("Transaction failed or rejected in Petra.");
       }
-
       const result = await ShelbyClient.uploadBlob(
         file, description, senderAddress,
         (p) => setUploadProgress(p)
       );
-
       fetchBlobs();
       window.dispatchEvent(new Event("shelby_blobs_changed"));
       return result;
@@ -64,4 +60,3 @@ export function useShelbyClient() {
 
   return { blobs, loading, isUploading, uploadProgress, uploadMedia, refresh: fetchBlobs };
 }
-EOF
