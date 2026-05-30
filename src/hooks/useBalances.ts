@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
-const SHELBY_DEVNET = "https://api.shelbynet.shelby.xyz/v1";
-const SUSD_FAUCET_URL = "https://docs.shelby.xyz/apis/faucet/shelbyusd";
+// ✅ Correct RPC — same as Shelby Explorer uses
+const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
+
+// ✅ Correct Faucet URLs — captured from Shelby Explorer network calls
+const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
+const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
+
 const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
 const APT_COIN = "0x1::aptos_coin::AptosCoin";
 
@@ -14,20 +19,26 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   const fetchBalances = async () => {
     if (!walletAddress) return;
     try {
+      // ✅ APT balance
       const aptRes = await fetch(
-        `${SHELBY_DEVNET}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN}>`
+        `${SHELBY_RPC}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN}>`
       );
       if (aptRes.ok) {
         const d = await aptRes.json();
         setApt(parseInt(d?.data?.coin?.value ?? "0") / 1e8);
+      } else {
+        setApt(0);
       }
 
+      // ✅ ShelbyUSD balance
       const susdRes = await fetch(
-        `${SHELBY_DEVNET}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN}>`
+        `${SHELBY_RPC}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN}>`
       );
       if (susdRes.ok) {
         const d = await susdRes.json();
         setSusd(parseInt(d?.data?.coin?.value ?? "0") / 1e8);
+      } else {
+        setSusd(0);
       }
     } catch (err) {
       console.error("Balance fetch error:", err);
@@ -48,36 +59,33 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   const claimFaucet = async (): Promise<boolean> => {
     if (!walletAddress) return false;
     try {
-      // ✅ Real Shelbynet APT faucet
-      const aptRes = await fetch(
-        `https://api.shelbynet.shelby.xyz/v1/faucet/mint?amount=500000000&address=${walletAddress}`,
-        { method: "POST" }
-      );
-      console.log("APT faucet status:", aptRes.status);
+      // ✅ APT faucet — exact same call as Shelby Explorer
+      const aptRes = await fetch(APT_FAUCET_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: walletAddress,
+          amount: 500000000  // 5 APT
+        })
+      });
+      console.log("APT faucet:", aptRes.status);
 
-      // ✅ Real ShelbyUSD faucet — docs.shelby.xyz API
+      // ✅ ShelbyUSD faucet — exact same call as Shelby Explorer
       const susdRes = await fetch(SUSD_FAUCET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: walletAddress,
-          amount: 10000000000  // 100 SUSD (1e8 decimals)
+          amount: 1000000000  // 10 SUSD
         })
       });
-      console.log("SUSD faucet status:", susdRes.status);
-
-      // Fallback: agar dono fail ho to Petra wallet faucet button use karo
-      if (!aptRes.ok && !susdRes.ok) {
-        console.warn("Both faucets failed — use Petra wallet Faucet button directly");
-        // Petra wallet ke andar jo Faucet button hai woh shelbynet pe automatically kaam karta hai
-      }
+      console.log("SUSD faucet:", susdRes.status);
 
       setTimeout(fetchBalances, 3000);
       return true;
     } catch (err) {
       console.error("Faucet error:", err);
-      // Petra wallet faucet button still works directly even if API fails
-      return true;
+      return false;
     }
   };
 
