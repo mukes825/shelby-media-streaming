@@ -4,7 +4,6 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
 const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
 const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
-const SUSD_ASSET = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
 const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
 const APT_COIN = "0x1::aptos_coin::AptosCoin";
 
@@ -12,6 +11,31 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
   const { signAndSubmitTransaction } = useWallet();
   const [apt, setApt] = useState(0);
   const [susd, setSusd] = useState(0);
+  const [susdStoreAddress, setSusdStoreAddress] = useState<string | null>(null);
+
+  const findSusdStore = async (address: string): Promise<string | null> => {
+    try {
+      // Get all objects owned by wallet to find FungibleStore
+      const res = await fetch(
+        `${SHELBY_RPC}/accounts/${address}/transactions?limit=25`
+      );
+      if (!res.ok) return null;
+      const txns = await res.json();
+
+      for (const txn of txns) {
+        const changes = txn.changes || [];
+        for (const change of changes) {
+          if (change.data?.type === "0x1::fungible_asset::FungibleStore") {
+            const storeAddr = change.address;
+            if (storeAddr) return storeAddr;
+          }
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
 
   const fetchBalances = async () => {
     if (!walletAddress) return;
@@ -33,19 +57,17 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
         setApt(0);
       }
 
-      // SUSD balance — FungibleStore se (primary_fungible_store)
-      const susdRes = await fetch(`${SHELBY_RPC}/view`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          function: "0x1::primary_fungible_store::balance",
-          type_arguments: [],
-          arguments: [walletAddress, SUSD_ASSET]
-        })
-      });
-      if (susdRes.ok) {
-        const d = await susdRes.json();
-        setSusd(parseInt(d[0] ?? "0") / 1e8);
+      // SUSD — direct FungibleStore address se
+      const storeAddr = susdStoreAddress || await findSusdStore(walletAddress);
+      if (storeAddr) {
+        setSusdStoreAddress(storeAddr);
+        const susdRes = await fetch(
+          `${SHELBY_RPC}/accounts/${storeAddr}/resource/0x1::fungible_asset::FungibleStore`
+        );
+        if (susdRes.ok) {
+          const d = await susdRes.json();
+          setSusd(parseInt(d.data?.balance ?? "0") / 1e8);
+        }
       } else {
         setSusd(0);
       }
