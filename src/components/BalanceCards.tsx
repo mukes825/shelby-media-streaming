@@ -1,130 +1,103 @@
-import { useState, useEffect } from "react";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { motion } from 'framer-motion';
+import { Coins, HardDrive, ShieldCheck, Sparkles } from 'lucide-react';
 
-// ✅ Correct RPC — same as Shelby Explorer uses
-const SHELBY_RPC = "https://api.shelbynet.staging.aptoslabs.com/v1";
+interface BalanceCardsProps {
+  walletConnected: boolean;
+  aptBalance: number;
+  susdBalance: number;
+  blobsCount: number;
+  onClaimFaucet: () => void;
+}
 
-// ✅ Correct Faucet URLs — captured from Shelby Explorer network calls
-const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
-const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
+export default function BalanceCards({
+  walletConnected,
+  aptBalance,
+  susdBalance,
+  blobsCount,
+  onClaimFaucet
+}: BalanceCardsProps) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* APT GAS token Card */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="relative overflow-hidden bg-white/90 border border-amber-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between"
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] font-mono uppercase font-bold text-slate-400 pb-1">Gas Coordination Token</p>
+            <h3 className="text-2xl font-black font-mono text-slate-800 tracking-tight">
+              {walletConnected ? `${aptBalance.toFixed(4)} APT` : "—"}
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+            <Coins className="w-5 h-5" />
+          </div>
+        </div>
+        <div className="pt-4 mt-4 border-t border-slate-50 flex items-center justify-between text-[11px]">
+          <span className="text-slate-400">Rate: ~0.0015 APT / txn</span>
+          {walletConnected ? (
+            <span className="text-emerald-600 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active gas pool
+            </span>
+          ) : (
+            <span className="text-slate-400 flex items-center gap-1">Connect wallet</span>
+          )}
+        </div>
+      </motion.div>
 
-const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
-const APT_COIN = "0x1::aptos_coin::AptosCoin";
+      {/* ShelbyUSD storage token Card */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="relative overflow-hidden bg-white/90 border border-pink-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between"
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] font-mono uppercase font-bold text-slate-400 pb-1">Hot Storage Allocator</p>
+            <h3 className="text-2xl font-black font-mono text-pink-600 tracking-tight">
+              {walletConnected ? `${susdBalance.toFixed(2)} SUSD` : "—"}
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
+            <HardDrive className="w-5 h-5 animate-pulse" />
+          </div>
+        </div>
+        <div className="pt-4 mt-4 border-t border-slate-50 flex items-center justify-between text-[11px]">
+          <span className="text-slate-400">Rate: $0.10 ShelbyUSD / MB</span>
+          {walletConnected ? (
+            <button
+              onClick={onClaimFaucet}
+              className="text-pink-500 font-bold hover:text-pink-600 flex items-center gap-1 animate-pulse"
+            >
+              <Sparkles className="w-3 h-3" /> Faucet top-up
+            </button>
+          ) : (
+            <span className="text-slate-400">Connect wallet</span>
+          )}
+        </div>
+      </motion.div>
 
-export function useBalances(walletConnected: boolean, walletAddress: string | null) {
-  const { signAndSubmitTransaction } = useWallet();
-  const [apt, setApt] = useState(0);
-  const [susd, setSusd] = useState(0);
-
-  const fetchBalances = async () => {
-    if (!walletAddress) return;
-    try {
-      // ✅ APT balance
-      const aptRes = await fetch(
-        `${SHELBY_RPC}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${APT_COIN}>`
-      );
-      if (aptRes.ok) {
-        const d = await aptRes.json();
-        setApt(parseInt(d?.data?.coin?.value ?? "0") / 1e8);
-      } else {
-        setApt(0);
-      }
-
-      // ✅ ShelbyUSD balance
-      const susdRes = await fetch(
-        `${SHELBY_RPC}/accounts/${walletAddress}/resource/0x1::coin::CoinStore<${SUSD_COIN}>`
-      );
-      if (susdRes.ok) {
-        const d = await susdRes.json();
-        setSusd(parseInt(d?.data?.coin?.value ?? "0") / 1e8);
-      } else {
-        setSusd(0);
-      }
-    } catch (err) {
-      console.error("Balance fetch error:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (!walletConnected || !walletAddress) {
-      setApt(0);
-      setSusd(0);
-      return;
-    }
-    fetchBalances();
-    const t = setInterval(fetchBalances, 6000);
-    return () => clearInterval(t);
-  }, [walletConnected, walletAddress]);
-
-  const claimFaucet = async (): Promise<boolean> => {
-    if (!walletAddress) return false;
-    try {
-      // ✅ APT faucet — exact same call as Shelby Explorer
-      const aptRes = await fetch(APT_FAUCET_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: walletAddress,
-          amount: 500000000  // 5 APT
-        })
-      });
-      console.log("APT faucet:", aptRes.status);
-
-      // ✅ ShelbyUSD faucet — exact same call as Shelby Explorer
-      const susdRes = await fetch(SUSD_FAUCET_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address: walletAddress,
-          amount: 1000000000  // 10 SUSD
-        })
-      });
-      console.log("SUSD faucet:", susdRes.status);
-
-      setTimeout(fetchBalances, 3000);
-      return true;
-    } catch (err) {
-      console.error("Faucet error:", err);
-      return false;
-    }
-  };
-
-  const deduct = async (aptAmount: number, susdAmount: number): Promise<boolean> => {
-    if (!walletAddress || !signAndSubmitTransaction) return false;
-    try {
-      // TX 1: APT gas fee — pehle katega
-      const aptTx = await signAndSubmitTransaction({
-        data: {
-          function: "0x1::aptos_account::transfer",
-          typeArguments: [],
-          functionArguments: [
-            "0x000000000000000000000000000000000000000000000000000000000000dead",
-            Math.floor(aptAmount * 1e8).toString()
-          ]
-        }
-      });
-      console.log("✅ APT gas tx:", aptTx.hash);
-
-      // TX 2: ShelbyUSD storage fee — baad mein katega
-      const susdTx = await signAndSubmitTransaction({
-        data: {
-          function: "0x1::coin::transfer",
-          typeArguments: [SUSD_COIN],
-          functionArguments: [
-            "0x000000000000000000000000000000000000000000000000000000000000dead",
-            Math.floor(susdAmount * 1e8).toString()
-          ]
-        }
-      });
-      console.log("✅ ShelbyUSD storage tx:", susdTx.hash);
-
-      setTimeout(fetchBalances, 3000);
-      return true;
-    } catch (err: any) {
-      console.error("Transaction failed:", err);
-      throw new Error(err?.message || "Petra transaction rejected");
-    }
-  };
-
-  return { apt, susd, claimFaucet, deduct, refresh: fetchBalances };
+      {/* Total Storage Blobs Metrics Card */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="relative overflow-hidden bg-white/90 border border-rose-100 rounded-2xl p-5 shadow-sm flex flex-col justify-between"
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] font-mono uppercase font-bold text-slate-400 pb-1">Retrieved Blobs</p>
+            <h3 className="text-2xl font-black font-mono text-rose-700 tracking-tight">
+              {blobsCount} Active Items
+            </h3>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+        </div>
+        <div className="pt-4 mt-4 border-t border-slate-50 flex items-center justify-between text-[11px] text-slate-400">
+          <p className="truncate">Perm URL stream enabled</p>
+          <span className="font-mono text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded uppercase font-bold">100% SLA</span>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
