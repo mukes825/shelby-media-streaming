@@ -6,41 +6,40 @@ const APT_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=apt";
 const SUSD_FAUCET_URL = "https://faucet.shelbynet.shelby.xyz/fund?asset=shelbyusd";
 const SUSD_COIN = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1::shelby_usd::ShelbyUSD";
 const APT_COIN = "0x1::aptos_coin::AptosCoin";
+const SUSD_METADATA = "0x1b18363a9f1fe5e6ebf247daba5cc1c18052bb232efdc4c50f556053922d98e1";
 
 export function useBalances(walletConnected: boolean, walletAddress: string | null) {
   const { signAndSubmitTransaction } = useWallet();
   const [apt, setApt] = useState(0);
   const [susd, setSusd] = useState(0);
-  const [susdStoreAddress, setSusdStoreAddress] = useState<string | null>(null);
+  const [susdStore, setSusdStore] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const findSusdStore = async (address: string): Promise<string | null> => {
+  // SUSD store address ek baar fetch karo aur cache karo
+  const getSusdStoreAddress = async (address: string): Promise<string | null> => {
     try {
-      // Get all objects owned by wallet to find FungibleStore
-      const res = await fetch(
-        `${SHELBY_RPC}/accounts/${address}/transactions?limit=25`
-      );
+      const res = await fetch(`${SHELBY_RPC}/view`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          function: "0x1::primary_fungible_store::primary_store_address",
+          type_arguments: ["0x1::fungible_asset::Metadata"],
+          arguments: [address, SUSD_METADATA]
+        })
+      });
       if (!res.ok) return null;
-      const txns = await res.json();
-
-      for (const txn of txns) {
-        const changes = txn.changes || [];
-        for (const change of changes) {
-          if (change.data?.type === "0x1::fungible_asset::FungibleStore") {
-            const storeAddr = change.address;
-            if (storeAddr) return storeAddr;
-          }
-        }
-      }
-      return null;
+      const data = await res.json();
+      return data?.[0] || null;
     } catch {
       return null;
     }
   };
 
-  const fetchBalances = async () => {
+  const fetchBalances = async (storeAddr?: string) => {
     if (!walletAddress) return;
+    setIsLoading(true);
     try {
-      // APT balance
+      // APT fetch
       const aptRes = await fetch(`${SHELBY_RPC}/view`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,26 +52,25 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
       if (aptRes.ok) {
         const d = await aptRes.json();
         setApt(parseInt(d[0] ?? "0") / 1e8);
-      } else {
-        setApt(0);
       }
 
-      // SUSD — direct FungibleStore address se
-      const storeAddr = susdStoreAddress || await findSusdStore(walletAddress);
-      if (storeAddr) {
-        setSusdStoreAddress(storeAddr);
+      // SUSD fetch — cached store address use karo
+      const store = storeAddr || susdStore;
+      if (store) {
         const susdRes = await fetch(
-          `${SHELBY_RPC}/accounts/${storeAddr}/resource/0x1::fungible_asset::FungibleStore`
+          `${SHELBY_RPC}/accounts/${store}/resource/0x1::fungible_asset::FungibleStore`
         );
         if (susdRes.ok) {
           const d = await susdRes.json();
-          setSusd(parseInt(d.data?.balance ?? "0") / 1e8);
+          const val = parseInt(d.data?.balance ?? "0") / 1e8;
+          setSusd(val);
+          console.log("✅ SUSD:", val);
         }
-      } else {
-        setSusd(0);
       }
     } catch (err) {
       console.error("Balance fetch error:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -80,31 +78,46 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
     if (!walletConnected || !walletAddress) {
       setApt(0);
       setSusd(0);
+      setSusdStore(null);
       return;
     }
-    fetchBalances();
-    const t = setInterval(fetchBalances, 6000);
+
+    // Pehle store address fetch karo — phir balance
+    const init = async () => {
+      const store = await getSusdStoreAddress(walletAddress);
+      console.log("SUSD Store:", store);
+      if (store) setSusdStore(store);
+      await fetchBalances(store || undefined);
+    };
+
+    init();
+
+    // 30 second interval — 429 avoid karne ke liye
+    const t = setInterval(() => fetchBalances(), 30000);
     return () => clearInterval(t);
   }, [walletConnected, walletAddress]);
 
   const claimFaucet = async (): Promise<boolean> => {
     if (!walletAddress) return false;
     try {
-      const aptRes = await fetch(APT_FAUCET_URL, {
+      const r1 = await fetch(APT_FAUCET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 500000000 })
       });
-      console.log("APT faucet:", aptRes.status);
+      console.log("APT faucet:", r1.status);
 
-      const susdRes = await fetch(SUSD_FAUCET_URL, {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const r2 = await fetch(SUSD_FAUCET_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address: walletAddress, amount: 1000000000 })
       });
-      console.log("SUSD faucet:", susdRes.status);
+      console.log("SUSD faucet:", r2.status);
 
-      setTimeout(fetchBalances, 3000);
+      await new Promise(resolve => setTimeout(resolve, 4000));
+      await fetchBalances();
       return true;
     } catch (err) {
       console.error("Faucet error:", err);
@@ -125,7 +138,7 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
           ]
         }
       });
-      console.log("APT gas tx:", aptTx.hash);
+      console.log("APT tx:", aptTx.hash);
 
       const susdTx = await signAndSubmitTransaction({
         data: {
@@ -137,9 +150,10 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
           ]
         }
       });
-      console.log("SUSD storage tx:", susdTx.hash);
+      console.log("SUSD tx:", susdTx.hash);
 
-      setTimeout(fetchBalances, 3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await fetchBalances();
       return true;
     } catch (err: any) {
       console.error("Transaction failed:", err);
@@ -147,5 +161,13 @@ export function useBalances(walletConnected: boolean, walletAddress: string | nu
     }
   };
 
-  return { apt, susd, claimFaucet, deduct, refresh: fetchBalances };
+  return {
+    apt,
+    susd,
+    aptBalance: { data: apt, isLoading, isRefetching: false },
+    shelbyUSDBalance: { data: susd, isLoading, isRefetching: false },
+    claimFaucet,
+    deduct,
+    refresh: fetchBalances,
+  };
 }
